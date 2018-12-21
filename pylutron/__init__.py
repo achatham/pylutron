@@ -857,12 +857,12 @@ class BatteryStatus(Enum):
   battery-powered devices."""
   UNSET = -1
   
-  # Values from ?HELP,?DEVICE,22 don't match the documentation, using what's in the doc.
-  #?HELP says:
-  # <0-NOT BATTERY POWERED, 1-DEVICE_BATTERY_STATUS_UNKNOWN, 2-DEVICE_BATTERY_STATUS_GOOD, 3-DEVICE_BATTERY_STATUS_LOW, 4-DEVICE_STATUS_MIA>5-DEVICE_STATUS_NOT_ACTIVATED>
-  NORMAL = 1
+  #?HELP,?DEVICE,22 says:
+  # <0-NOT BATTERY POWERED, 1-DEVICE_BATTERY_STATUS_UNKNOWN, 2-DEVICE_BATTERY_STATUS_GOOD, 3-DEVICE_BATTERY_STATUS_LOW, 4-DEVICE_STATUS_MIA>
+  # But I don't see these values from ?SYSTEM,22. So instead using the values from the PDF.
+  GOOD = 1
   LOW = 2
-  OTHER = 3  # not sure what this value means
+  OTHER = 3  # not sure what this value means, but I've seen it
 
   
 class MotionSensor(LutronEntity):
