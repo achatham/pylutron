@@ -118,7 +118,7 @@ class LutronConnection(threading.Thread):
   def _maybe_reconnect(self):
     """Reconnects to the controller if we have been previously disconnected."""
     with self._lock:
-      if not self._connected: 
+      if not self._connected:
         _LOGGER.info("Connecting")
         self._do_login_locked()
         self._connected = True
@@ -186,7 +186,7 @@ class LutronXmlDbParser(object):
     areas = top_area.find('Areas')
     for area_xml in areas.getiterator('Area'):
       area = self._parse_area(area_xml)
-      self.areas.append(area)      
+      self.areas.append(area)
     return True
 
   def _parse_area(self, area_xml):
@@ -217,7 +217,8 @@ class LutronXmlDbParser(object):
             'SEETOUCH_TABLETOP_KEYPAD',
             'PICO_KEYPAD',
             'HYBRID_SEETOUCH_KEYPAD',
-            'MAIN_REPEATER'):
+            'MAIN_REPEATER',
+            'HOMEOWNER_KEYPAD'):
           keypad = self._parse_keypad(device_xml)
           area.add_keypad(keypad)
         elif device_xml.get('DeviceType') == 'MOTION_SENSOR':
@@ -242,7 +243,7 @@ class LutronXmlDbParser(object):
                     name=keypad_xml.get('Name'),
                     integration_id=int(keypad_xml.get('IntegrationID')))
     components = keypad_xml.find('Components')
-    if not components:
+    if components is None:
       return keypad
     for comp in components:
       if comp.tag != 'Component':
@@ -592,7 +593,7 @@ class Output(LutronEntity):
         Output._ACTION_ZONE_LEVEL, "%.2f" % new_level)
     self._level = new_level
 
-## At some later date, we may want to also specify fade and delay times    
+## At some later date, we may want to also specify fade and delay times
 #  def set_level(self, new_level, fade_time, delay):
 #    self._lutron.send(Lutron.OP_EXECUTE, Output._CMD_TYPE,
 #        Output._ACTION_ZONE_LEVEL, new_level, fade_time, delay)
@@ -699,7 +700,7 @@ class Button(KeypadComponent):
     }
     if action not in ev_map:
       _LOGGER.debug("Unknown action %d for button %d in keypad %d" % (
-          action, self.number, self.keypad.name))
+          action, self.number, self._keypad.name))
       return False
     self._dispatch_event(ev_map[action], {})
     return True
@@ -769,11 +770,11 @@ class Led(KeypadComponent):
                   self._keypad.name, self, action, params))
     if action != Led._ACTION_LED_STATE:
       _LOGGER.debug("Unknown action %d for led %d in keypad %d" % (
-          action, self.number, self.keypad.name))
+          action, self.number, self._keypad.name))
       return False
     elif len(params) < 1:
       _LOGGER.debug("Unknown params %s (action %d on led %d in keypad %d)" % (
-          params, action, self.number, self.keypad.name))
+          params, action, self.number, self._keypad.name))
       return False
     self._state = bool(params[0])
     self._query_waiters.notify()
@@ -783,7 +784,7 @@ class Led(KeypadComponent):
 
 class Keypad(LutronEntity):
   """Object representing a Lutron keypad.
-  
+
   Currently we don't really do much with it except handle the events
   (and drop them on the floor).
   """
@@ -852,7 +853,7 @@ class PowerSource(Enum):
   BATTERY = 1
   EXTERNAL = 2
 
-  
+
 class BatteryStatus(Enum):
   """Enum values representing battery state, reported by queries to
   battery-powered devices."""
@@ -865,7 +866,7 @@ class BatteryStatus(Enum):
   LOW = 2
   OTHER = 3  # not sure what this value means
 
-  
+
 class MotionSensor(LutronEntity):
   """Placeholder class for the motion sensor device.
 
@@ -881,7 +882,7 @@ class MotionSensor(LutronEntity):
   class Event(LutronEvent):
     """MotionSensor events that can be generated.
 
-    BATTERY_STATUS_CHANGED: Battery status changed
+    STATUS_CHANGED: Battery status changed
         Params:
           power: PowerSource
           battery: BatteryStatus
@@ -900,6 +901,7 @@ class MotionSensor(LutronEntity):
     self._lutron.register_id(MotionSensor._CMD_TYPE, self)
     self._query_waiters = _RequestHelper()
     self._last_update = None
+<<<<<<< HEAD
 
   @property
   def id(self):
@@ -921,7 +923,7 @@ class MotionSensor(LutronEntity):
   def _update_age(self):
     """Returns the time of the last poll in seconds."""
     if self._last_update is None:
-      return 1e6
+      return float('inf')
     else:
       return time.time() - self._last_update
 
@@ -938,12 +940,12 @@ class MotionSensor(LutronEntity):
   @property
   def power_source(self):
     """Returns the current PowerSource."""
-    self.battery_status  # retrieved by the same query
+    _ = self.battery_status  # retrieved by the same query
     return self._power
 
   def _do_query_battery(self):
     """Helper to perform the query for the current BatteryStatus."""
-    component_num = 1  # doesn't seem to matter
+    component_num = 2  # doesn't seem to matter
     return self._lutron.send(Lutron.OP_QUERY, MotionSensor._CMD_TYPE, self._integration_id,
                              component_num, MotionSensor._ACTION_BATTERY_STATUS)
 
@@ -966,6 +968,7 @@ class MotionSensor(LutronEntity):
 
 
 class OccupancyGroup(LutronEntity):
+  """Represents one or more occupancy/vacancy sensors grouped into an Area."""
   _CMD_TYPE = 'GROUP'
   _ACTION_STATE = 3
 
@@ -1028,13 +1031,245 @@ class OccupancyGroup(LutronEntity):
     return self._lutron.send(Lutron.OP_QUERY, OccupancyGroup._CMD_TYPE, self._integration_id,
                              OccupancyGroup._ACTION_STATE)
 
+=======
+
+  @property
+  def id(self):
+    """The integration id"""
+    return self._integration_id
+
+  def __str__(self):
+    """Returns a pretty-printed string for this object."""
+    return 'MotionSensor {} Id: {} Battery: {} Power: {}'.format(
+      self.name, self.id, self.battery_status, self.power_source)
+
+  def __repr__(self):
+    """String representation of the MotionSensor object."""
+    return str({'motion_sensor_name': self.name, 'id': self.id,
+                'battery' : self.battery_status,
+                'power' : self.power_source})
+
+  @property
+  def _update_age(self):
+    """Returns the time of the last poll in seconds."""
+    if self._last_update is None:
+      return float('inf')
+    else:
+      return time.time() - self._last_update
+
+  @property
+  def battery_status(self):
+    """Returns the current BatteryStatus."""
+    # Battery status won't change frequently but can't be retrieved for MONITORING.
+    # So rate limit queries to once an hour.
+    if self._update_age > 3600.0:
+      ev = self._query_waiters.request(self._do_query_battery)
+      ev.wait(1.0)
+    return self._battery
+
+  @property
+  def power_source(self):
+    """Returns the current PowerSource."""
+    _ = self.battery_status  # retrieved by the same query
+    return self._power
+
+  def _do_query_battery(self):
+    """Helper to perform the query for the current BatteryStatus."""
+    component_num = 2  # doesn't seem to matter
+    return self._lutron.send(Lutron.OP_QUERY, MotionSensor._CMD_TYPE, self._integration_id,
+                             component_num, MotionSensor._ACTION_BATTERY_STATUS)
+
+  def handle_update(self, args):
+    """Handle the specified action on this component."""
+    if len(args) != 6:
+      _LOGGER.debug('Wrong number of args for MotionSensor update {}'.format(len(args)))
+      return False
+    _, action, _, power, battery, _ = args
+    action = int(action)
+    if action != MotionSensor._ACTION_BATTERY_STATUS:
+      _LOGGER.debug("Unknown action %d for motion sensor {}".format(self.name))
+      return False
+    self._power = PowerSource(int(power))
+    self._battery = BatteryStatus(int(battery))
+    self._query_waiters.notify()
+    self._dispatch_event(
+      MotionSensor.Event.STATUS_CHANGED, {'power' : self._power, 'battery': self._battery})
+    return True
+
+
+class OccupancyGroup(LutronEntity):
+  """Represents one or more occupancy/vacancy sensors grouped into an Area."""
+  _CMD_TYPE = 'GROUP'
+  _ACTION_STATE = 3
+
+  class State(Enum):
+    """Possible states of an OccupancyGroup."""
+    UNSET = 0
+    OCCUPIED = 3
+    VACANT = 4
+    UNKNOWN = 255
+
+=======
+
+  @property
+  def id(self):
+    """The integration id"""
+    return self._integration_id
+
+  def __str__(self):
+    """Returns a pretty-printed string for this object."""
+    return 'MotionSensor {} Id: {} Battery: {} Power: {}'.format(
+      self.name, self.id, self.battery_status, self.power_source)
+
+  def __repr__(self):
+    """String representation of the MotionSensor object."""
+    return str({'motion_sensor_name': self.name, 'id': self.id,
+                'battery' : self.battery_status,
+                'power' : self.power_source})
+
+  @property
+  def _update_age(self):
+    """Returns the time of the last poll in seconds."""
+    if self._last_update is None:
+      return float('inf')
+    else:
+      return time.time() - self._last_update
+
+  @property
+  def battery_status(self):
+    """Returns the current BatteryStatus."""
+    # Battery status won't change frequently but can't be retrieved for MONITORING.
+    # So rate limit queries to once an hour.
+    if self._update_age > 3600.0:
+      ev = self._query_waiters.request(self._do_query_battery)
+      ev.wait(1.0)
+    return self._battery
+
+  @property
+  def power_source(self):
+    """Returns the current PowerSource."""
+    _ = self.battery_status  # retrieved by the same query
+    return self._power
+
+  def _do_query_battery(self):
+    """Helper to perform the query for the current BatteryStatus."""
+    component_num = 2  # doesn't seem to matter
+    return self._lutron.send(Lutron.OP_QUERY, MotionSensor._CMD_TYPE, self._integration_id,
+                             component_num, MotionSensor._ACTION_BATTERY_STATUS)
+
+  def handle_update(self, args):
+    """Handle the specified action on this component."""
+    if len(args) != 6:
+      _LOGGER.debug('Wrong number of args for MotionSensor update {}'.format(len(args)))
+      return False
+    _, action, _, power, battery, _ = args
+    action = int(action)
+    if action != MotionSensor._ACTION_BATTERY_STATUS:
+      _LOGGER.debug("Unknown action %d for motion sensor {}".format(self.name))
+      return False
+    self._power = PowerSource(int(power))
+    self._battery = BatteryStatus(int(battery))
+    self._query_waiters.notify()
+    self._dispatch_event(
+      MotionSensor.Event.STATUS_CHANGED, {'power' : self._power, 'battery': self._battery})
+    return True
+
+
+class OccupancyGroup(LutronEntity):
+  """Represents one or more occupancy/vacancy sensors grouped into an Area."""
+  _CMD_TYPE = 'GROUP'
+  _ACTION_STATE = 3
+
+  class State(Enum):
+    """Possible states of an OccupancyGroup."""
+    UNSET = 0
+    OCCUPIED = 3
+    VACANT = 4
+    UNKNOWN = 255
+
+>>>>>>> caa215412a6f956fa87b868ccd5c46acf78fe91c
+  class Event(LutronEvent):
+    """OccupancyGroup event that can be generated.
+
+    OCCUPANCY_CHANGED: Occupancy state has changed.
+        Params:
+          state: an OccupancyGroup.State
+    """
+    OCCUPANCY = 1
+
+  def __init__(self, lutron, area):
+    super(OccupancyGroup, self).__init__(lutron, 'Occ {}'.format(area.name))
+    self._area = area
+    self._integration_id = area.id
+    self._state = OccupancyGroup.State.UNSET
+    self._lutron.register_id(OccupancyGroup._CMD_TYPE, self)
+    self._query_waiters = _RequestHelper()
+
+  @property
+  def id(self):
+    """The integration id"""
+    return self._integration_id
+
+  @property
+  def name(self):
+    """Return the name of this OccupancyGroup, which is 'Occ' plus the name of the area."""
+    return 'Occ {}'.format(self._area.name)
+
+  @property
+  def state(self):
+    """Returns the current occupancy state."""
+    # Poll for the first request.
+    if self._state == OccupancyGroup.State.UNSET:
+      ev = self._query_waiters.request(self._do_query_state)
+      ev.wait(1.0)
+    return self._state
+
+  def __str__(self):
+    """Returns a pretty-printed string for this object."""
+    return 'OccupancyGroup for Area "{}" Id: {} State: {}'.format(
+      self._area.name, self.id, self.state.name)
+
+  def __repr__(self):
+    """Returns a stringified representation of this object."""
+    return str({'area_name' : self.area.name,
+                'id' : self.id,
+                'state' : self.state})
+
+  def _do_query_state(self):
+    """Helper to perform the actual query for the current OccupancyGroup state."""
+    return self._lutron.send(Lutron.OP_QUERY, OccupancyGroup._CMD_TYPE, self._integration_id,
+                             OccupancyGroup._ACTION_STATE)
+
+<<<<<<< HEAD
+>>>>>>> Add OccupancyGroup tracking and report motion sensor battery
+=======
+>>>>>>> caa215412a6f956fa87b868ccd5c46acf78fe91c
 
   def handle_update(self, args):
     """Handles an event update for this object, e.g. occupancy state change."""
     action = int(args[0])
     if action != OccupancyGroup._ACTION_STATE or len(args) != 2:
       return False
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> apply fixes from pull request
+=======
+>>>>>>> caa215412a6f956fa87b868ccd5c46acf78fe91c
+    try:
+      self._state = OccupancyGroup.State(int(args[1]))
+    except ValueError:
+      self._state = OccupancyGroup.State.UNKNOWN
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
     self._state = OccupancyGroup.State(int(args[1]))
+>>>>>>> Add OccupancyGroup tracking and report motion sensor battery
+=======
+>>>>>>> apply fixes from pull request
+=======
+>>>>>>> caa215412a6f956fa87b868ccd5c46acf78fe91c
     self._query_waiters.notify()
     self._dispatch_event(OccupancyGroup.Event.OCCUPANCY, {'state': self._state})
     return True
